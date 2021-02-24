@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<script type="text/javascript" src="http://static.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+<script type="text/javascript" src="http://static.robotwebtools.org/mjpegcanvasjs/current/mjpegcanvas.min.js"></script>
+<script type="text/javascript" src="http://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.7.3/nipplejs.js"></script>
+<script type="text/javascript" type="text/javascript">
+
+  createViewer = function(){
+    var viewer = new MJPEGCANVAS.Viewer({
+      divID : 'mjpeg',
+      host : 'localhost',
+      width : 640,
+      height : 480,
+      topic : 'image_topic'
+    });
+  }
+  createJoystick = function () {
+      var options = {
+        zone: document.getElementById('zone_joystick'),
+        threshold: 0.1,
+        position: { left: 50 + '%' },
+        mode: 'static',
+        size: 150,
+        color: '#000000',
+      };
+      manager = nipplejs.create(options);
+
+      linear_speed = 0;
+      angular_speed = 0;
+
+      self.manager.on('start', function (event, nipple) {
+        console.log("Movement start");
+      });
+
+      self.manager.on('move', function (event, nipple) {
+        console.log("Moving");
+      });
+
+      self.manager.on('end', function () {
+        console.log("Movement end");
+      });
+  }
+  window.onload = function () {
+      createViewer();
+      createJoystick();
+      
+  }
+  
+
+  var ros = new ROSLIB.Ros({
+    url : 'ws://localhost:9090'
+  });
+  
+  var txt_listener = new ROSLIB.Topic({
+    ros : ros,
+    name : '/txt_msg',
+    messageType : 'std_msgs/String'
+  });
+
+  cmd_vel_listener = new ROSLIB.Topic({
+    ros : ros,
+    name : "/cmd_vel",
+    messageType : 'geometry_msgs/Twist'
+  });
+
+
+  move = function (linear, angular) {
+    var twist = new ROSLIB.Message({
+      linear: {
+        x: linear,
+        y: 0,
+        z: 0
+      },
+      angular: {
+        x: 0,
+        y: 0,
+        z: angular
+      }
+    });
+    cmd_vel_listener.publish(twist);
+  }
+
+
+
+  txt_listener.subscribe(function(m) {
+    document.getElementById("msg").innerHTML = m.data;
+    move(1, 0);
+  });
+
+
+  ros.on('connection', function() {
+    document.getElementById("status").innerHTML = "Connected";
+  });
+
+  ros.on('error', function(error) {
+    document.getElementById("status").innerHTML = "Error";
+  });
+
+  ros.on('close', function() {
+    document.getElementById("status").innerHTML = "Closed";
+  });
+
+</script>
+</head>
+
+<body>
+  <h1>Simple ROS User Interface</h1>
+  <p>Connection status: <span id="status"></span></p>
+  <p>Last /txt_msg received: <span id="msg"></span></p>
+  <div id="mjpeg" ></div>
+  <div id="zone_joystick" style="position: relative;"></div>
+</body>
+</html>
